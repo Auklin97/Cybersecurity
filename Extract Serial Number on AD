@@ -1,0 +1,39 @@
+# Assurez-vous d'avoir les droits d'accès AD et d'exécuter en tant qu'administrateur
+
+# Importer le module AD
+Import-Module ActiveDirectory
+
+# Récupérer la liste des ordinateurs du domaine
+$computers = Get-ADComputer -Filter * -Property Name
+
+# Tableau pour stocker les résultats
+$results = @()
+
+foreach ($computer in $computers) {
+    $compName = $computer.Name
+    Write-Host "Connexion à $compName..." -ForegroundColor Cyan
+
+    try {
+        # Récupérer les infos de BIOS via WMI
+        $bios = Get-WmiObject -Class Win32_BIOS -ComputerName $compName -ErrorAction Stop
+        $serial = $bios.SerialNumber
+
+        # Ajouter au tableau
+        $results += [PSCustomObject]@{
+            ComputerName = $compName
+            SerialNumber = $serial
+        }
+    }
+    catch {
+        Write-Warning "Impossible de récupérer le numéro de série pour $compName : $_"
+        $results += [PSCustomObject]@{
+            ComputerName = $compName
+            SerialNumber = "Erreur de connexion ou accès refusé"
+        }
+    }
+}
+
+# Exporter les résultats dans un fichier CSV
+$results | Export-Csv -Path "C:\Temp\SerialNumbers.csv" -NoTypeInformation -Encoding UTF8
+
+Write-Host "Extraction terminée. Fichier généré : C:\Temp\SerialNumbers.csv" -ForegroundColor Green
